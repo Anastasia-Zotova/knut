@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кнут</title>
+    <style>
+        canvas {
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Настройки для пользователя -->
+    <label for="numberOfBalls">Количество шариков:</label>
+    <input type="number" id="numberOfBalls" value="10">
+	
+	<label for="distanceBetweenBalls">Расстояние между шариками:</label>
+    <input type="number" id="distanceBetweenBalls" value="30">
+    <br>
+    <label for="frequency">Частота колебаний:</label>
+    <input type="number" id="frequency" value="1">
+
+    <label for="amplitude">Амплитуда колебаний:</label>
+    <input type="number" id="amplitude" value="50">
+	<br>
+    <label for="springConstant">Жесткость пружины:</label>
+    <input type="number" id="springConstant" value="0.2">
+
+    <label for="bendingConstant">Изгибная жесткость:</label>
+    <input type="number" id="bendingConstant" value="0.1">
+	<br>
+
+    <!-- Флажок для выбора режима колебаний -->
+    <label for="harmonicMotion">Гармоническое/ручное колебание:</label>
+    <input type="checkbox" id="harmonicMotion" checked>
+
+    <!-- Кнопка запуска анимации -->
+    <button onclick="startAnimation()">Начало</button> <br>
+    <!-- Холст для рисования анимации -->
+    <canvas id="whipCanvas" width="800" height="400"></canvas>
+
+    <script>
+        function startAnimation() {
+		// Получение значений параметров от пользователя
+            const numberOfBalls = parseInt(document.getElementById('numberOfBalls').value, 10);
+            const oscillationFrequency = 0.0055*parseFloat(document.getElementById('frequency').value);
+            const amplitude = parseFloat(document.getElementById('amplitude').value);
+            const springConstant = parseFloat(document.getElementById('springConstant').value);
+            const bendingConstant = parseFloat(document.getElementById('bendingConstant').value);
+            const distanceBetweenBalls = parseFloat(document.getElementById('distanceBetweenBalls').value);
+            const harmonicMotion = document.getElementById('harmonicMotion').checked;
+
+            const canvas = document.getElementById('whipCanvas');
+            const ctx = canvas.getContext('2d');
+
+            const ballRadius = 10;
+            const dampingFactor = 0.98;
+
+			// Создание массива шаров с исходными значениями
+            const balls = Array.from({ length: numberOfBalls }, (_, index) => ({
+                x: index * distanceBetweenBalls + 50,
+                y: canvas.height / 2,
+                velocity: 0,
+                mass: numberOfBalls - index + 1,
+            }));
+
+			// Функция для расчета общей энергии системы
+            function calculateTotalEnergy() {
+                let totalEnergy = 0;
+
+                balls.forEach((ball, index) => {
+                    const kineticEnergy = 0.5 * ball.mass * ball.velocity ** 2;
+
+                    if (index < balls.length - 1) {
+                        const dx = balls[index + 1].x - ball.x;
+                        const dy = balls[index + 1].y - ball.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const springPotential = 0.5 * springConstant * (distance - distanceBetweenBalls) ** 2;
+
+                        totalEnergy += kineticEnergy + springPotential;
+                    }
+
+                    //if (index < balls.length - 2) {
+                    //    const dx = balls[index + 2].x - ball.x;
+                    //    const dy = balls[index + 2].y - ball.y;
+                   //     const distance = Math.sqrt(dx * dx + dy * dy);
+                    //    const bendingPotential = 0.5 * bendingConstant * (distance - 2 * distanceBetweenBalls) ** 2;
+
+                    //    totalEnergy += bendingPotential;
+                    //}
+                });
+
+                return totalEnergy;
+            }
+
+			// Функция для отрисовки анимации
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                balls.forEach((ball, index) => {
+					// Отрисовка шаров
+                    ctx.beginPath();
+                    ctx.arc(ball.x, ball.y, ballRadius, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'blue';
+                    ctx.fill();
+                    ctx.stroke();
+
+					// Расчет силы и движение шаров, соединенных пружинами
+                    if (index < balls.length - 1) {
+                        const dx = balls[index + 1].x - ball.x;
+                        const dy = balls[index + 1].y - ball.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const angle = Math.atan2(dy, dx);
+
+                        const springForce = springConstant * (distance - distanceBetweenBalls);
+                        const dampingForce = -dampingFactor * ball.velocity;
+
+                        const acceleration = (springForce + dampingForce) / ball.mass;
+                        ball.velocity += acceleration;
+
+                        ball.x += Math.cos(angle) * ball.velocity;
+                        ball.y += Math.sin(angle) * ball.velocity;
+
+						// Отрисовка пружин
+                        ctx.beginPath();
+                        ctx.moveTo(ball.x, ball.y);
+                        ctx.lineTo(balls[index + 1].x, balls[index + 1].y);
+                        ctx.strokeStyle = 'black';
+                        ctx.stroke();
+                    } else {
+						// Моделирование гармонического колебания для последнего кружка
+                        if (harmonicMotion) {
+                            ball.y = canvas.height / 2 + Math.sin(performance.now() * oscillationFrequency) * amplitude;
+                        } else {
+                            // Управление мышью
+                            canvas.addEventListener('mousemove', (event) => {
+                                ball.x = event.clientX - canvas.getBoundingClientRect().left;
+                                ball.y = event.clientY - canvas.getBoundingClientRect().top;
+                            });
+                        }
+                    }
+                });
+
+                const totalEnergy = calculateTotalEnergy();
+                console.log('Total Energy:', totalEnergy);
+
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+        }
+    </script>
+</body>
+</html>
+
